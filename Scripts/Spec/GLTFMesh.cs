@@ -233,7 +233,55 @@ namespace Siccity.GLTFUtility {
 						mesh.tangents = tangents.ToArray();
 
 					mesh.name = name;
-					return mesh;
+
+					return FixBlendShapeNormals(mesh);
+				}
+
+				private Mesh FixBlendShapeNormals(Mesh selected)
+				{
+					Vector3[] deltaVertices = new Vector3[selected.vertexCount];
+					Vector3[] deltaNormals = new Vector3[selected.vertexCount];
+					Vector3[] deltaTangents = new Vector3[selected.vertexCount];
+
+					int bsc = selected.blendShapeCount;
+
+					Mesh newMesh = new Mesh();
+					newMesh.vertices = selected.vertices;
+					newMesh.uv = selected.uv;
+					newMesh.normals = selected.normals;
+					newMesh.colors = selected.colors;
+					newMesh.tangents = selected.tangents;
+					newMesh.subMeshCount = selected.subMeshCount;
+					newMesh.triangles = selected.triangles;
+
+					int subMeshes = selected.subMeshCount;
+					for (int i = 0; i < subMeshes; i++)
+					{
+						int[] tris = selected.GetTriangles(i);
+						newMesh.SetIndices(tris, MeshTopology.Triangles, i);
+					}
+
+					newMesh.name = selected.name + "_fixed";
+					newMesh.boneWeights = selected.boneWeights;
+					newMesh.bindposes = selected.bindposes;
+
+					Vector3[] zero = new Vector3[selected.vertexCount];
+					for (int i = 0; i < zero.Length; i++)
+						zero[i] = Vector3.zero;
+
+					for (int i = 0; i < bsc; i++)
+					{
+						string name = selected.GetBlendShapeName(i);
+						int weightCount = selected.GetBlendShapeFrameCount(i);
+						for (int j = 0; j < weightCount; j++)
+						{
+							float weight = selected.GetBlendShapeFrameWeight(i, j);
+							selected.GetBlendShapeFrameVertices(i, j, deltaVertices, deltaNormals, deltaTangents);
+							newMesh.AddBlendShapeFrame(name, weight, deltaVertices, zero, deltaTangents);
+						}
+					}
+
+					return newMesh;
 				}
 
 				public void NormalizeWeights(ref Vector4 weights) {
